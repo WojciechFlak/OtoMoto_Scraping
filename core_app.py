@@ -2,6 +2,7 @@ import sqlite3
 import pandas
 from bs4 import BeautifulSoup
 import requests
+import time
 
 import csv
 import datetime
@@ -29,10 +30,38 @@ class Scrapper:
         )
         self.conn.commit()
 
+    def count_pages(self, url):
+
+        response = requests.get(url)
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        pagination_div = soup.find("ul", class_="pagination-list")
+
+        if pagination_div:
+            # Find all links within the pagination element
+            pagination_links = pagination_div.find_all("a")
+
+            max_page = 0
+            for link in pagination_links:
+                try:
+                    page_number = int(link.text)
+                    max_page = max(max_page, page_number)
+                except ValueError:
+                    pass
+        '''  print(f"Total number of pages: {max_page}")
+        else:
+            print("Pagination element not found")'''
+        return max_page
+
+
     def scrap_to_csv(self, url, csv_file):
         self.url = url
         self.csv_file = csv_file
-        for i in range(1, 6):
+
+        max_page = self.count_pages(self.url)
+        print(f"Total number of pages: {max_page}")
+
+        for i in range(1, max_page):
             url = self.url + '?page=' + str(i)
 
             page = requests.get(url)
@@ -45,6 +74,8 @@ class Scrapper:
 
             lists += lists2
             lists += lists3
+
+            time.sleep(2)
 
             with open(self.csv_file, 'a', encoding='utf8', newline='') as f:
                 thewriter = csv.writer(f)
@@ -78,6 +109,9 @@ class Scrapper:
                     self.conn.execute('INSERT INTO cars (title, price, year_of_production, milage, engine) VALUES (?, ?, ?, ?, ?)',(title, price, year, milage, engine))
                     # Commit the changes and close the database connection
         self.conn.commit()
+
+
+
 
 
 
